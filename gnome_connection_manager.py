@@ -1380,7 +1380,7 @@ class Wmain(SimpleGladeApp):
                 if host.type == 'ssh':
                     if len(host.user)==0:
                         host.user = get_username()
-                    if host.password == '':
+                    if host.password == '' or host.use_2fa:
                         cmd = SSH_BIN
                         args = [ SSH_BIN, '-l', host.user, '-p', host.port]
                     else:
@@ -1413,7 +1413,6 @@ class Wmain(SimpleGladeApp):
                     args.append(host.host)
                 else:
                     if host.user=='' or host.password=='':
-                        password=''
                         cmd = TEL_BIN
                         args = [TEL_BIN]
                     else:
@@ -1425,11 +1424,16 @@ class Wmain(SimpleGladeApp):
                 #v.fork_command(cmd, args)
                 vte_run(v, cmd, args)
                 while Gtk.events_pending():
-                    Gtk.main_iteration()                                
-                
-                #esperar 2 seg antes de enviar el pass para dar tiempo a que se levante expect y prevenir que se muestre el pass
-                if password!=None and password!='':
-                    GLib.timeout_add(2000, self.send_data, v, password)
+                    Gtk.main_iteration()
+                if (host.use_2fa):
+                    GLib.timeout_add(6000, self.send_data, v, inputbox('Two-Factor Authentification', 'Enter 2FA provided :'))
+                    GLib.timeout_add(6000, self.send_pwd, v, "assword:", password)
+                    #while Gtk.events_pending():
+                    #    Gtk.main_iteration()
+                else:
+                    #esperar 2 seg antes de enviar el pass para dar tiempo a que se levante expect y prevenir que se muestre el pass
+                    if password!=None and password!='':
+                        GLib.timeout_add(6000, self.send_data, v, password)
             
             #esperar 3 seg antes de enviar comandos
             if host.commands!=None and host.commands!='':
@@ -1457,7 +1461,18 @@ class Wmain(SimpleGladeApp):
     def send_data(self, terminal, data):
         vte_feed(terminal, '%s\r' % data)
         return False
-        
+
+    def send_pwd(self, terminal, invit, password):
+        buff = ""
+        while not buff.endswith(invit):
+            buff, b = terminal.get_text_range(0, 0, terminal.get_property('scrollback-lines') - 1, terminal.get_column_count() - 1, None, None)
+            buff = buff.strip()
+            while Gtk.events_pending():
+                Gtk.main_iteration()
+        if password != None and password != '':
+            GLib.timeout_add(6000, self.send_data, terminal, password)
+        return False
+
     def initLeftPane(self):
         global groups       
 
@@ -2385,6 +2400,7 @@ class Host():
             self.backspace_key = self.get_arg(args, int(Vte.EraseBinding.AUTO))
             self.delete_key = self.get_arg(args, int(Vte.EraseBinding.AUTO))
             self.term = self.get_arg(args, '')
+            self.use_2fa = self.get_arg(args, None)
         except:
             pass
        
@@ -2438,7 +2454,8 @@ class HostUtils:
         backspace_key = int(HostUtils.get_val(cp, section, "backspace-key", int(Vte.EraseBinding.AUTO)))
         delete_key = int(HostUtils.get_val(cp, section, "delete-key", int(Vte.EraseBinding.AUTO)))
         term = HostUtils.get_val(cp, section, "term", "")
-        h = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands, keepalive, fcolor, bcolor, x11, agent, compression, compressionLevel,  extra_params, log, backspace_key, delete_key, term)
+        use_2fa = HostUtils.get_val(cp, section, "use_2fa", False)
+        h = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands, keepalive, fcolor, bcolor, x11, agent, compression, compressionLevel,  extra_params, log, backspace_key, delete_key, term,use_2fa)
         return h
 
     @staticmethod
@@ -2468,6 +2485,7 @@ class HostUtils:
         cp.set(section, "backspace-key", host.backspace_key)
         cp.set(section, "delete-key", host.delete_key)
         cp.set(section, "term", host.term)
+        cp.set(section, "use_2fa", host.use_2fa)
 
 class Whost(SimpleGladeApp):
 
@@ -2531,6 +2549,7 @@ class Whost(SimpleGladeApp):
         self.cmbBackspace = self.get_widget("cmbBackspace")
         self.cmbDelete = self.get_widget("cmbDelete")
         self.txtTerm = self.get_widget("txtTerm")
+        self.chkUse2FA = self.get_widget("chkUse2FA")
         self.cmbType.set_active(0)
         self.cmbBackspace.set_active(0)
         self.cmbDelete.set_active(0)
@@ -2603,6 +2622,7 @@ class Whost(SimpleGladeApp):
         self.cmbDelete.set_active(host.delete_key)
         self.update_texttags()
         self.txtTerm.set_text(host.term)
+        self.chkUse2FA.set_active(host.use_2fa)
         
     def update_texttags(self, *args):
         buf = self.txtCommands.get_buffer()
@@ -2657,6 +2677,7 @@ class Whost(SimpleGladeApp):
         log = self.chkLogging.get_active()
         backspace_key = self.cmbBackspace.get_active()
         delete_key = self.cmbDelete.get_active()
+        use_2fa = self.chkUse2FA.get_active()
         
         if ctype == "":
             ctype = "ssh"
@@ -2677,8 +2698,10 @@ class Whost(SimpleGladeApp):
             return
         
         term = self.txtTerm.get_text()        
+        
+        use_2fa = self.chkUse2FA.get_active()
 
-        host = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands, keepalive, fcolor, bcolor, x11, agent, compression, compressionLevel,  extra_params, log, backspace_key, delete_key, term)
+        host = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands, keepalive, fcolor, bcolor, x11, agent, compression, compressionLevel,  extra_params, log, backspace_key, delete_key, term, use_2fa)
                     
         try:
             #Guardar                
