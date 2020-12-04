@@ -1283,7 +1283,7 @@ class Wmain(SimpleGladeApp):
         except Exception as e:
             pass
 
-    def addTab(self, notebook, host):
+        def addTab(self, notebook, host):
         try:
             v = Vte.Terminal()
             v.set_word_char_exceptions(conf.WORD_SEPARATORS)
@@ -1413,6 +1413,7 @@ class Wmain(SimpleGladeApp):
                     args.append(host.host)
                 else:
                     if host.user=='' or host.password=='':
+                        password = ''
                         cmd = TEL_BIN
                         args = [TEL_BIN]
                     else:
@@ -1428,8 +1429,6 @@ class Wmain(SimpleGladeApp):
                 if (host.use_2fa):
                     GLib.timeout_add(6000, self.send_data, v, inputbox('Two-Factor Authentification', 'Enter 2FA provided :'))
                     GLib.timeout_add(6000, self.send_pwd, v, "assword:", password)
-                    #while Gtk.events_pending():
-                    #    Gtk.main_iteration()
                 else:
                     #esperar 2 seg antes de enviar el pass para dar tiempo a que se levante expect y prevenir que se muestre el pass
                     if password!=None and password!='':
