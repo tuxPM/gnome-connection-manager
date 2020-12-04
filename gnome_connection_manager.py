@@ -1455,13 +1455,13 @@ class Wmain(SimpleGladeApp):
                 while Gtk.events_pending():
                     Gtk.main_iteration()
                 if (host.use_2fa):
-                    GLib.timeout_add(6000, self.send_data, v,
+                    GLib.timeout_add(2000, self.send_data, v,
                                      inputbox('Two-Factor Authentification', 'Enter 2FA provided :'))
-                    GLib.timeout_add(6000, self.send_pwd, v, "assword:", password)
+                    GLib.timeout_add(2000, self.send_pwd, v, "assword:", password)
                 else:
                     # esperar 2 seg antes de enviar el pass para dar tiempo a que se levante expect y prevenir que se muestre el pass
                     if password != None and password != '':
-                        GLib.timeout_add(6000, self.send_data, v, password)
+                        GLib.timeout_add(2000, self.send_data, v, password)
 
             # esperar 3 seg antes de enviar comandos
             if host.commands != None and host.commands != '':
@@ -1499,7 +1499,7 @@ class Wmain(SimpleGladeApp):
             while Gtk.events_pending():
                 Gtk.main_iteration()
         if password != None and password != '':
-            GLib.timeout_add(6000, self.send_data, terminal, password)
+            GLib.timeout_add(2000, self.send_data, terminal, password)
         return False
 
     def initLeftPane(self):
