@@ -1588,6 +1588,18 @@ if not, write to the Free Software Foundation, Inc.,
                 <child>
                   <placeholder/>
                 </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
               </object>
             </child>
             <child type="tab">
@@ -1993,9 +2005,6 @@ if not, write to the Free Software Foundation, Inc.,
                 <property name="n_rows">17</property>
                 <property name="n_columns">2</property>
                 <property name="column_spacing">5</property>
-                <child>
-                  <placeholder/>
-                </child>
                 <child>
                   <object class="GtkLabel" id="label2">
                     <property name="visible">True</property>
@@ -2551,6 +2560,21 @@ if not, write to the Free Software Foundation, Inc.,
                     <property name="bottom_attach">13</property>
                   </packing>
                 </child>
+                <child>
+                  <object class="GtkEntry" id="txtSecret2FA">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="visibility">False</property>
+                    <property name="primary_icon_tooltip_text" translatable="yes">Shared secret</property>
+                    <property name="secondary_icon_tooltip_markup" translatable="yes">Shared secret</property>
+                  </object>
+                  <packing>
+                    <property name="left_attach">1</property>
+                    <property name="right_attach">2</property>
+                    <property name="top_attach">16</property>
+                    <property name="bottom_attach">17</property>
+                  </packing>
+                </child>
               </object>
             </child>
             <child type="tab">
@@ -2573,6 +2597,12 @@ if not, write to the Free Software Foundation, Inc.,
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="n_rows">2</property>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
                 <child>
                   <placeholder/>
                 </child>

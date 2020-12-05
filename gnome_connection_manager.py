@@ -199,6 +199,9 @@ from SimpleGladeApp import bindtextdomain
 import configparser
 import pyAES
 import urlregex
+import string
+import hmac
+import struct
 
 app_name = "Gnome Connection Manager"
 app_version = "1.2.1"
@@ -1455,8 +1458,11 @@ class Wmain(SimpleGladeApp):
                 while Gtk.events_pending():
                     Gtk.main_iteration()
                 if (host.use_2fa):
-                    GLib.timeout_add(2000, self.send_data, v,
-                                     inputbox('Two-Factor Authentification', 'Enter 2FA provided :'))
+                    if host.secret_2fa == None or host.secret_2fa == '':
+                        secret=inputbox('Two-Factor Authentification', 'Enter 2FA provided :')
+                    else:
+                        secret=self.get_totp(host.secret_2fa)
+                    GLib.timeout_add(2000, self.send_data, v, secret)
                     GLib.timeout_add(2000, self.send_pwd, v, "assword:", password)
                 else:
                     # esperar 2 seg antes de enviar el pass para dar tiempo a que se levante expect y prevenir que se muestre el pass
@@ -1485,6 +1491,19 @@ class Wmain(SimpleGladeApp):
             print("ERROR", e)
             traceback.print_exc()
             msgbox("%s: %s" % (_("Error al conectar con servidor"), sys.exc_info()[1]))
+
+    def get_totp(self, secret, time_step=30, digits=6, digest='sha1'):
+        import string
+        isHex=all(c in string.hexdigits for c in secret)
+        if isHex:
+            secret=base64.b32encode(bytes.fromhex(hex)).decode()
+        counter=int(time.time() / time_step)
+        key = base64.b32decode(secret.upper() + '=' * ((8 - len(secret)) % 8))
+        counter = struct.pack('>Q', counter)
+        mac = hmac.new(key, counter, digest).digest()
+        offset = mac[-1] & 0x0f
+        binary = struct.unpack('>L', mac[offset:offset + 4])[0] & 0x7fffffff
+        return str(binary)[-digits:].rjust(digits, '0')
 
     def send_data(self, terminal, data):
         vte_feed(terminal, '%s\r' % data)
@@ -2464,6 +2483,8 @@ class Host():
             self.delete_key = self.get_arg(args, int(Vte.EraseBinding.AUTO))
             self.term = self.get_arg(args, '')
             self.use_2fa = self.get_arg(args, None)
+            self.secret_2fa = self.get_arg(args, None)
+
         except:
             pass
 
@@ -2482,7 +2503,7 @@ class Host():
         return Host(self.group, self.name, self.description, self.host, self.user, self.password, self.private_key,
                     self.port, self.tunnel_as_string(), self.type, self.commands, self.keep_alive, self.font_color,
                     self.back_color, self.x11, self.agent, self.compression, self.compressionLevel, self.extra_params,
-                    self.log, self.backspace_key, self.delete_key, self.term)
+                    self.log, self.backspace_key, self.delete_key, self.term, self.use_2fa, self.secret_2fa)
 
 
 class HostUtils:
@@ -2521,9 +2542,10 @@ class HostUtils:
         delete_key = int(HostUtils.get_val(cp, section, "delete-key", int(Vte.EraseBinding.AUTO)))
         term = HostUtils.get_val(cp, section, "term", "")
         use_2fa = HostUtils.get_val(cp, section, "use_2fa", False)
+        secret_2fa = HostUtils.get_val(cp, section, "secret_2fa", "")
         h = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands, keepalive,
                  fcolor, bcolor, x11, agent, compression, compressionLevel, extra_params, log, backspace_key,
-                 delete_key, term, use_2fa)
+                 delete_key, term, use_2fa, secret_2fa)
         return h
 
     @staticmethod
@@ -2554,6 +2576,7 @@ class HostUtils:
         cp.set(section, "delete-key", host.delete_key)
         cp.set(section, "term", host.term)
         cp.set(section, "use_2fa", host.use_2fa)
+        cp.set(section, "secret_2fa", host.secret_2fa)
 
 
 class Whost(SimpleGladeApp):
@@ -2619,6 +2642,7 @@ class Whost(SimpleGladeApp):
         self.cmbDelete = self.get_widget("cmbDelete")
         self.txtTerm = self.get_widget("txtTerm")
         self.chkUse2FA = self.get_widget("chkUse2FA")
+        self.txtSecret2FA = self.get_widget("txtSecret2FA")
         self.cmbType.set_active(0)
         self.cmbBackspace.set_active(0)
         self.cmbDelete.set_active(0)
@@ -2693,6 +2717,7 @@ class Whost(SimpleGladeApp):
         self.update_texttags()
         self.txtTerm.set_text(host.term)
         self.chkUse2FA.set_active(host.use_2fa)
+        self.txtSecret2FA.set_text(host.secret_2fa)
 
     def update_texttags(self, *args):
         buf = self.txtCommands.get_buffer()
@@ -2749,6 +2774,7 @@ class Whost(SimpleGladeApp):
         backspace_key = self.cmbBackspace.get_active()
         delete_key = self.cmbDelete.get_active()
         use_2fa = self.chkUse2FA.get_active()
+        secret_2fa = self.txtSecret2FA.get_text().strip()
 
         if ctype == "":
             ctype = "ssh"
@@ -2770,11 +2796,9 @@ class Whost(SimpleGladeApp):
 
         term = self.txtTerm.get_text()
 
-        use_2fa = self.chkUse2FA.get_active()
-
         host = Host(group, name, description, host, user, password, private_key, port, tunnel, ctype, commands,
                     keepalive, fcolor, bcolor, x11, agent, compression, compressionLevel, extra_params, log,
-                    backspace_key, delete_key, term, use_2fa)
+                    backspace_key, delete_key, term, use_2fa, secret_2fa)
 
         try:
             # Guardar
